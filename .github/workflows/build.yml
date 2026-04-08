@@ -25,13 +25,11 @@ jobs:
     runs-on: ${{ matrix.config.os }}
 
     steps:
-      - checkout:
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          # Вот эта часть заставит CMake увидеть SDK
           build-config: |
             -DGeode_DIR=$GEODE_SDK
             -DCMAKE_PREFIX_PATH=$GEODE_SDK
