@@ -11,7 +11,7 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          # МЫ ПИШЕМ ЭТО ЯВНО:
+          # МЫ ПИШЕМ ЭТО ЯВНО, чтобы он не гадал:
           sdk: v3.7.0
           target: Android64
           combine: true
