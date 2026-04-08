@@ -30,6 +30,6 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          sdk: v5.5.3
+          # Мы НЕ пишем здесь sdk: v5.5.3, чтобы не ломать скачивание
           target: ${{ matrix.config.target }}
           combine: true
