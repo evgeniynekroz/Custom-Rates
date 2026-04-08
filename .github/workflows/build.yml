@@ -27,9 +27,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Принудительно ставим SDK перед сборкой
+      - name: Setup Geode SDK
+        uses: geode-sdk/cli/.github/actions/setup@main
+
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
+          # Теперь переменная GEODE_SDK точно будет существовать
+          build-config: "-DCMAKE_PREFIX_PATH=${{ env.GEODE_SDK }}"
           sdk: v5.5.3
           target: ${{ matrix.config.target }}
           combine: true
