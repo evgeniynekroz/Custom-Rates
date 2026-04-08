@@ -28,8 +28,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Mod
-        uses: geode-sdk/build-geode-mod@main
+        uses: geode-sdk/build-geode-mod@v2
         with:
-          # Мы НЕ пишем здесь sdk: v5.5.3, чтобы не ломать скачивание
+          # Мы не указываем sdk: v5.5.3, чтобы экшен не искал несуществующий SDK.
+          # Он сам поймет, что нужно для geode 3.0.0.
           target: ${{ matrix.config.target }}
           combine: true
