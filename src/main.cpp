@@ -7,13 +7,15 @@
 using namespace geode::prelude;
 
 // ==========================================
-// 1. КОНФИГУРАЦИЯ И ШИФРОВАНИЕ
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И КОНФИГУРАЦИЯ
 // ==========================================
+bool g_isAdmin = false; // Кэш статуса админа
+
 const std::string CURRENT_VERSION = "v1.0.0";
 const std::string UPDATE_URL = "https://raw.githubusercontent.com/evgeniynekroz/custom-rates-mod/main/version.json";
 const std::string TURSO_URL = "https://custom-rates-evgen.aws-eu-west-1.turso.io/v2/pipeline";
 
-// Твой зашифрованный токен
+// Зашифрованный токен
 const std::vector<unsigned char> ENC_TOKEN = {
     0xd4, 0xe3, 0xde, 0xe5, 0xf2, 0xc2, 0xae, 0xa6, 0x82, 0xa0, 0xfb, 0xdc, 0xce, 0xc8, 0xc2, 0xd1, 
     0x9c, 0x9c, 0x84, 0xba, 0xf8, 0xf4, 0xc6, 0xb8, 0xf3, 0xc6, 0x84, 0xf9, 0x84, 0xa2, 0xc1, 0xc2, 
@@ -37,10 +39,9 @@ const std::vector<unsigned char> ENC_TOKEN = {
 
 const std::string CRYPTO_KEY = "Nekroz2026";
 
-std::string getTursoAuth() {
+std::string getAuthHeader() {
     std::string token;
     for (size_t i = 0; i < ENC_TOKEN.size(); i++) {
-        // Расшифровка: XOR и инверсия битов
         unsigned char decrypted = ~(ENC_TOKEN[i] ^ CRYPTO_KEY[i % CRYPTO_KEY.length()]);
         token += (char)decrypted;
     }
@@ -48,51 +49,43 @@ std::string getTursoAuth() {
 }
 
 // ==========================================
-// 2. ИНТЕРФЕЙС: ПЕРЕХВАТ ВКЛАДКИ FEATURED
+// ИНТЕРФЕЙС CUSTOM FEATURED
 // ==========================================
 class CustomRatesPopup : public geode::Popup<> {
 protected:
     bool setup() override {
         this->setTitle("Custom Featured");
 
-        // Dark UI для фона
+        auto winSize = CCDirector::sharedDirector()->getWinSize();
+
         if (auto bg = typeinfo_cast<CCScale9Sprite*>(m_mainLayer->getChildByID("background"))) {
-            bg->setColor({ 20, 20, 20 });
-            bg->setOpacity(240);
+            bg->setColor({ 15, 15, 15 });
         }
 
-        auto winSize = CCDirector::sharedDirector()->getWinSize();
-        auto btnMenu = CCMenu::create();
-        btnMenu->setPosition({ winSize.width / 2, winSize.height / 2 + 85 });
-        m_mainLayer->addChild(btnMenu);
+        auto menu = CCMenu::create();
+        menu->setPosition({ winSize.width / 2, winSize.height / 2 + 80 });
+        m_mainLayer->addChild(menu);
 
-        // Кнопка Лидерборда (Синие звезды)
         auto topSprite = ButtonSprite::create("Blue Star Top", "goldFont.fnt", "GJ_button_02.png", .7f);
-        topSprite->setColor({ 0, 150, 255 });
-        auto topBtn = CCMenuItemSpriteExtra::create(topSprite, this, menu_selector(CustomRatesPopup::onLeaderboard));
-        topBtn->setPosition({ -105, 0 });
-        btnMenu->addChild(topBtn);
+        topSprite->setColor({ 0, 160, 255 });
+        auto topBtn = CCMenuItemSpriteExtra::create(topSprite, this, menu_selector(CustomRatesPopup::onTop));
+        topBtn->setPosition({ -100, 0 });
+        menu->addChild(topBtn);
 
-        // Кнопка тегов
-        auto tagsSprite = ButtonSprite::create("Tags (#Layout)", "goldFont.fnt", "GJ_button_04.png", .7f);
+        auto tagsSprite = ButtonSprite::create("Tags (#Layout)", "goldFont.fnt", "GJ_button_01.png", .7f);
         auto tagsBtn = CCMenuItemSpriteExtra::create(tagsSprite, this, menu_selector(CustomRatesPopup::onTags));
-        tagsBtn->setPosition({ 105, 0 });
-        btnMenu->addChild(tagsBtn);
+        tagsBtn->setPosition({ 100, 0 });
+        menu->addChild(tagsBtn);
 
-        auto loadingLabel = CCLabelBMFont::create("Fetching Levels...", "bigFont.fnt");
-        loadingLabel->setScale(0.5f);
-        m_mainLayer->addChildAtPosition(loadingLabel, Anchor::Center);
+        auto label = CCLabelBMFont::create("Загрузка уровней...", "bigFont.fnt");
+        label->setScale(0.45f);
+        m_mainLayer->addChildAtPosition(label, Anchor::Center);
 
         return true;
     }
 
-    void onLeaderboard(CCObject*) {
-        FLAlertLayer::create("Leaderboard", "Топ игроков по синим звездам скоро появится!", "OK")->show();
-    }
-
-    void onTags(CCObject*) {
-        FLAlertLayer::create("Tags", "Фильтры по категориям: #Layout, #Platformer...", "OK")->show();
-    }
+    void onTop(CCObject*) { FLAlertLayer::create("Leaderboard", "Топ игроков в разработке", "OK")->show(); }
+    void onTags(CCObject*) { FLAlertLayer::create("Tags", "Фильтр по тегам скоро появится", "OK")->show(); }
 
 public:
     static CustomRatesPopup* create() {
@@ -107,58 +100,78 @@ public:
 };
 
 // ==========================================
-// 3. ХУКИ: ПЕРЕХВАТ И АДМИН-ПАНЕЛЬ
+// ХУКИ
 // ==========================================
+
+// 1. Главное меню (Проверка БД и обновлений)
+class $modify(MyMenuLayer, MenuLayer) {
+    bool init() {
+        if (!MenuLayer::init()) return false;
+        
+        // Проверка обновлений
+        web::AsyncWebRequest()
+            .fetch(UPDATE_URL)
+            .text()
+            .then([](std::string const& res) {
+                if (res.find(CURRENT_VERSION) == std::string::npos && res.find("version") != std::string::npos) {
+                    FLAlertLayer::create("Update Available", "Доступно обновление Custom Rates!", "OK")->show();
+                }
+            });
+
+        // Асинхронный запрос к БД: проверяем, есть ли ник в таблице admins
+        std::string myName = GJAccountManager::sharedState()->m_username;
+        if (!myName.empty()) {
+            std::string query = "{\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT 1 FROM admins WHERE username = '" + myName + "'\"}}]}";
+            
+            web::AsyncWebRequest()
+                .header("Authorization", getAuthHeader())
+                .header("Content-Type", "application/json")
+                .bodyRaw(query)
+                .post(TURSO_URL)
+                .text()
+                .then([](std::string const& res) {
+                    // Turso возвращает пустой массив rows: [], если ничего не найдено.
+                    // Если строка найдена, массив будет заполнен.
+                    if (res.find("\"rows\":[]") == std::string::npos && 
+                        res.find("\"rows\": []") == std::string::npos && 
+                        res.find("\"rows\"") != std::string::npos) {
+                        g_isAdmin = true; // Успех: игрок есть в БД
+                    }
+                });
+        }
+        return true;
+    }
+};
+
+// 2. Вкладка Creator (Перехват кнопки Featured)
 class $modify(MyCreatorLayer, CreatorLayer) {
-    // Перехватываем стандартную кнопку Featured
     void onFeaturedLevels(CCObject* sender) {
         CustomRatesPopup::create()->show();
     }
 };
 
+// 3. Страница уровня (Рисуем кнопку, если g_isAdmin == true)
 class $modify(MyLevelInfoLayer, LevelInfoLayer) {
     bool init(GJGameLevel* level, bool p1) {
         if (!LevelInfoLayer::init(level, p1)) return false;
 
-        std::string myName = GJAccountManager::sharedState()->m_username;
-        // Список админов
-        if (myName == "NeNekroz" || myName == "UJNEFT") {
-            if (auto menu = this->getChildByID("left-side-menu")) {
-                // Используем твой PNG ресурс
-                auto btnSprite = CCSprite::create("blue_star.png"_spr);
-                if (!btnSprite) {
-                    btnSprite = CCSprite::createWithSpriteFrameName("GJ_starsIcon_001.png");
-                    btnSprite->setColor({ 0, 150, 255 }); 
+        // Проверяем глобальный флаг, полученный из БД
+        if (g_isAdmin) {
+            if (auto sideMenu = this->getChildByID("left-side-menu")) {
+                auto sprite = CCSprite::create("blue_star.png"_spr);
+                if (!sprite) {
+                    sprite = CCSprite::createWithSpriteFrameName("GJ_starsIcon_001.png");
+                    sprite->setColor({ 0, 150, 255 });
                 }
-                auto btn = CCMenuItemSpriteExtra::create(btnSprite, this, menu_selector(MyLevelInfoLayer::onRateLevel));
-                menu->addChild(btn);
-                menu->updateLayout();
+                auto btn = CCMenuItemSpriteExtra::create(sprite, this, menu_selector(MyLevelInfoLayer::onRate));
+                sideMenu->addChild(btn);
+                sideMenu->updateLayout();
             }
         }
         return true;
     }
 
-    void onRateLevel(CCObject*) {
-        FLAlertLayer::create("Turso", "Оценка отправлена в базу Custom Rates!", "OK")->show();
-    }
-};
-
-class $modify(MyMenuLayer, MenuLayer) {
-    bool init() {
-        if (!MenuLayer::init()) return false;
-
-        // Kill Switch / Проверка обновлений
-        web::AsyncWebRequest()
-            .fetch(UPDATE_URL)
-            .text()
-            .then([](std::string const& response) {
-                if (response.find(CURRENT_VERSION) == std::string::npos && response.find("version") != std::string::npos) {
-                    auto alert = FLAlertLayer::create("Update", "Доступна новая версия мода!", "OK");
-                    alert->m_noElasticity = true;
-                    alert->show();
-                }
-            });
-
-        return true;
+    void onRate(CCObject*) {
+        FLAlertLayer::create("Custom Rate", "Отправка в базу...", "OK")->show();
     }
 };
