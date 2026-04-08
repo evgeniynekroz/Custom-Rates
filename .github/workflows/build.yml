@@ -1,25 +1,17 @@
 name: Build Android Mod
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+on: [push, workflow_dispatch]
 
 jobs:
   build:
-    # Для Android сборки лучше использовать ubuntu
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Mod
-        # Это единственный реальный экшен от Geode для сборки
         uses: geode-sdk/build-geode-mod@main
         with:
-          # ВАЖНО: не указывай здесь версию SDK вручную, 
-          # если экшен не может её найти. 
-          # Он возьмет её из mod.json (поле "geode")
+          # МЫ ПИШЕМ ЭТО ЯВНО:
+          sdk: v3.7.0
           target: Android64
           combine: true
