@@ -26,11 +26,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Build Mod
-        uses: geode-sdk/build-geode-mod@v2
+        # Возвращаем @main, так как v2 не существует
+        uses: geode-sdk/build-geode-mod@main
         with:
-          # Мы не указываем sdk: v5.5.3, чтобы экшен не искал несуществующий SDK.
-          # Он сам поймет, что нужно для geode 3.0.0.
+          # Убираем sdk:, пускай экшен сам выберет нужный на основе mod.json
           target: ${{ matrix.config.target }}
           combine: true
