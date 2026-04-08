@@ -30,9 +30,6 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          build-config: |
-            -DGeode_DIR=$GEODE_SDK
-            -DCMAKE_PREFIX_PATH=$GEODE_SDK
           sdk: v5.5.3
           target: ${{ matrix.config.target }}
           combine: true
