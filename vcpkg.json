@@ -1,0 +1,7 @@
+{
+  "name": "custom-rates",
+  "version": "1.0.0",
+  "dependencies": [
+    "geode"
+  ]
+}
