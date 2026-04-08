@@ -1,38 +1,20 @@
-name: Build Custom Rates
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+name: Build Android Mod
+on: [push, workflow_dispatch]
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - name: Windows
-            os: windows-latest
-          - name: Android32
-            os: ubuntu-latest
-            target: Android32
-          - name: Android64
-            os: ubuntu-latest
-            target: Android64
-
-    name: ${{ matrix.config.name }}
-    runs-on: ${{ matrix.config.os }}
-
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Build Mod
-        # Возвращаем @main, так как v2 не существует
+      # Установка инструментов Geode
+      - name: Setup Geode
+        uses: geode-sdk/setup-geode@main
+
+      # Самая простая команда сборки
+      - name: Build
         uses: geode-sdk/build-geode-mod@main
         with:
-          # Убираем sdk:, пускай экшен сам выберет нужный на основе mod.json
-          target: ${{ matrix.config.target }}
+          sdk: v3.7.0
+          target: Android64 # Начни с одной версии (64 бит), так быстрее
           combine: true
