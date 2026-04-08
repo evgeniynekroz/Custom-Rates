@@ -1,9 +1,10 @@
 name: Build Custom Rates
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -11,33 +12,29 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: Windows, os: windows-latest, target: Win64 }
-          - { name: Android32, os: ubuntu-latest, target: Android32 }
-          - { name: Android64, os: ubuntu-latest, target: Android64 }
+          - name: Windows
+            os: windows-latest
+          - name: Android32
+            os: ubuntu-latest
+            target: Android32
+          - name: Android64
+            os: ubuntu-latest
+            target: Android64
 
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - checkout:
+        uses: actions/checkout@v4
 
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
+          # Вот эта часть заставит CMake увидеть SDK
+          build-config: |
+            -DGeode_DIR=$GEODE_SDK
+            -DCMAKE_PREFIX_PATH=$GEODE_SDK
+          sdk: v5.5.3
           target: ${{ matrix.config.target }}
           combine: true
-
-  package:
-    name: Package Mod
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Merge Artifacts
-        uses: geode-sdk/build-geode-mod/combine@main
-        id: build
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: CustomRates-v1.0.0
-          path: ${{ steps.build.outputs.build-output }}
