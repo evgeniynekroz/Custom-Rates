@@ -1,15 +1,11 @@
 {
 	"geode": "5.5.3",
-	"gd": {
-		"win": "2.2081",
-		"android": "2.2081"
-	},
-	"id": "evgeniynekroz.custom_rates",
+	"gd": "2.2081",
 	"version": "v1.0.0",
+	"id": "custom-rates",
 	"name": "Custom Rates",
-	"developer": "NekrozDEV",
-	"description": "Переработка вкладки Featured с кастомными рейтингами, тегами и лидербордами.",
-	"early-load": false,
+	"developer": "evgeniynekroz",
+	"description": "Custom rates and leaderboards for GD levels.",
 	"resources": {
 		"sprites": [
 			"resources/*.png"
